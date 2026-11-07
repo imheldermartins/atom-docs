@@ -1,0 +1,21 @@
+%% ATOM_C4
+flowchart TB
+    U["Usuário institucional<br/>Estudante ou professor"]
+
+    subgraph A["Campus A · Líder/seguidor"]
+        direction TB
+        FA["Frontend (Client)<br/>Interface web"] -->|"API · JSON / HTTPS"| BA["Backend (Server)<br/>Negócio e acessos"]
+        BA -->|"SQL via HTTPS"| DA[("Serviço Raft (SQLite)<br/>rqlite")]
+    end
+
+    subgraph N["Campus N · Seguidor"]
+        direction TB
+        FN["Frontend (Client)<br/>Interface web"] -->|"API · JSON / HTTPS"| BN["Backend (Server)<br/>Negócio e acessos"]
+        BN -->|"SQL via HTTPS"| DN[("Serviço Raft (SQLite)<br/>rqlite")]
+    end
+
+    U -->|"HTTPS"| FA
+    U -.->|"HTTPS · acesso alternativo"| FN
+    RAFT["Consenso e replicação Raft"]
+    DA <--> RAFT
+    DN <--> RAFT
