@@ -567,9 +567,9 @@ flowchart TB
     R --> A["Página"]
     R --> B["Página"]
     R --> C["Página"]
-    A --> D["Subpágina"]
-    A --> E["Subpágina"]
-    E --> F["Subpágina"]
+    A --> D["Página filha"]
+    A --> E["Página filha"]
+    E --> F["Página filha"]
     F -.-> G["…"]
 ```
 
