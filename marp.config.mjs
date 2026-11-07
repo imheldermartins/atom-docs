@@ -1,10 +1,11 @@
 import { Marp } from '@marp-team/marp-core'
+import katex from '@marp-team/marp-core/plugins/katex'
 import { renderMermaidSVG } from 'beautiful-mermaid'
 
 export default {
   html: true,
   engine: (options) => {
-    const marp = new Marp(options)
+    const marp = new Marp(options).use(katex())
 
     marp.use((md) => {
       const originalFence = md.renderer.rules.fence

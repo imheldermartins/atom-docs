@@ -2,6 +2,7 @@
 marp: true
 lang: pt-BR
 paginate: true
+math: katex
 transition: overlap
 style: |
   @font-face {
@@ -19,6 +20,9 @@ style: |
 
   * {
     color: #272727 !important;
+  }
+
+  *:not(.katex, .katex *) {
     font-family: 'Noto Sans', sans-serif;
   }
   
@@ -147,6 +151,20 @@ style: |
     stroke: #66517e !important;
     stroke-width: 1.5px !important;
   }
+
+  section.raft-math {
+    background: #fff;
+    text-align: center;
+  }
+  section.raft-math > p { max-width: 35em; margin-inline: auto; }
+  section.raft-math .math-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 28px;
+  }
+  section.raft-math .math-columns h2 { font-size: 1rem; margin: 0; }
+  section.raft-math .math-columns p { margin-bottom: 0; }
 
   section.overview .columns {
     display: grid;
@@ -428,6 +446,60 @@ Desenvolver e validar uma <mark>arquitetura distribuída, multi-tenant e toleran
 
 ---
 
+<!-- _class: raft-math -->
+
+# Quórum no Raft
+
+Um **cluster** é um grupo de nós que mantêm cópias do banco de dados.
+
+**Quórum** é o mínimo de nós que precisam concordar para salvar dados. No Raft, é mais da metade.
+
+Em um cluster de **3 nós**, bastam **2** para salvar dados. Por isso, o cluster aguenta **1 falha**. [17]
+
+---
+
+<!-- _class: raft-math -->
+
+# Dimensionamento do cluster
+
+<div class="math-columns">
+
+<div>
+
+## Número mínimo de nós
+
+$$
+\text{Nós mínimos} = 2 \times \text{Falhas} + 1
+$$
+
+**Simplificando:**
+
+$$
+N = 2F + 1
+$$
+
+</div>
+
+<div>
+
+## Limite de falhas
+
+$$
+\text{Falhas} = \left\lfloor \frac{\text{Nós} - 1}{2} \right\rfloor
+$$
+
+**Simplificando:**
+
+$$
+F = \left\lfloor \frac{N - 1}{2} \right\rfloor
+$$
+
+</div>
+
+</div>
+
+---
+
 <!-- _class: with-source -->
 
 # Arquitetura ATOM
@@ -547,14 +619,15 @@ flowchart TB
 ---
 
 # Proteção de dados
-## Política prevista no artefato
+## TLS e LGPD
 
-- **TLS:** exigir versões 1.2 ou 1.3, com preferência por 1.3 e validação dos certificados. [17]
-- **Em trânsito:** HTTPS nas APIs e autenticação mútua por certificados (mTLS) nas conexões entre nós Raft. [15]
-- **Em repouso:** prever criptografia dos volumes e backups na infraestrutura de implantação.
-- **LGPD:** adotar medidas técnicas e administrativas desde a concepção; <mark>TLS é parte da proteção, não uma comprovação isolada de conformidade</mark>. [18]
+O rqlite oferece **criptografia em trânsito** na API (HTTPS) e entre os nós. Com mTLS habilitado, ambos os lados validam os certificados no handshake. [15]
 
-<!-- Fontes: https://rqlite.io/docs/guides/security/; https://www.rfc-editor.org/rfc/rfc9325; LGPD, art. 46 e § 2º, texto atualizado em https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html. Trata-se da política proposta, sem afirmar configuração já implantada. As versões TLS são uma escolha técnica apoiada na RFC 9325, e não uma versão prescrita pelo art. 46. HTTPS da API e TLS/mTLS entre nós são configurações distintas; TLS não cifra os arquivos persistidos. -->
+A leitura direta do SQLite passa pelas **permissões do sistema operacional**. A criptografia em repouso fica a cargo da infraestrutura que protege volumes e backups. [21]
+
+O ATOM prevê medidas técnicas e administrativas desde a concepção, conforme o **art. 46 da LGPD**. [18]
+
+<!-- A leitura direta deve usar modo somente leitura. As alterações devem passar pela API. O mTLS pode ser configurado na API e entre os nós. -->
 
 ---
 
@@ -564,10 +637,10 @@ flowchart TB
 | Camada | Controle de permissões |
 | --- | --- |
 | **Backend do ATOM** | Perfis e autorizações por workspace, página e ação. |
-| **rqlite** | Contas de serviço; API: `query` / `execute`. [15] |
+| **rqlite** | Permissões por conta na API (`query` e `execute`). [15] |
 | **MySQL / PostgreSQL** | Privilégios SQL por objeto, com `GRANT` e `REVOKE`. [19, 20] |
 
-No plano do ATOM, o backend verifica o acesso aos dados de cada tenant. O rqlite <mark>não reproduz a granularidade de privilégios SQL</mark> desses SGBDs. [21]
+O rqlite permite contas de <mark>somente leitura</mark>. O backend do ATOM restringe os dados visíveis a cada usuário. [15]
 
 <!-- Fontes: https://rqlite.io/docs/guides/security/; https://dev.mysql.com/doc/refman/8.4/en/grant.html; https://www.postgresql.org/docs/current/ddl-priv.html; https://sqlite.org/omitted.html. O objetivo de controle de acesso é comum, mas os mecanismos são distintos. SQLite não implementa GRANT/REVOKE; as permissões HTTP do rqlite não restringem por workspace ou página. A proposta exige autorização no backend, credenciais técnicas separadas e registro de operações relevantes. -->
 
@@ -645,7 +718,7 @@ No plano do ATOM, o backend verifica o acesso aos dados de cada tenant. O rqlite
 
 [16] SQLITE. [*SQLite Foreign Key Support*](https://sqlite.org/foreignkeys.html). Restrições de integridade e relações entre tabelas.
 
-[17] IETF. [*RFC 9325 — Recommendations for Secure Use of TLS and DTLS*](https://www.rfc-editor.org/rfc/rfc9325). 2022.
+[17] RQLITE. [*General guidelines*](https://rqlite.io/docs/clustering/general-guidelines/). Quórum e tolerância a falhas.
 
 [18] BRASIL. [*Lei nº 13.709/2018 — Lei Geral de Proteção de Dados Pessoais*](https://www2.camara.leg.br/legin/fed/lei/2018/lei-13709-14-agosto-2018-787077-normaatualizada-pl.html). Art. 46. Texto atualizado, Câmara dos Deputados.
 
@@ -653,7 +726,7 @@ No plano do ATOM, o backend verifica o acesso aos dados de cada tenant. O rqlite
 
 [20] POSTGRESQL. [*Privileges*](https://www.postgresql.org/docs/current/ddl-priv.html). Documentação oficial.
 
-[21] SQLITE. [*SQL Features That SQLite Does Not Implement*](https://sqlite.org/omitted.html). Ausência de `GRANT` e `REVOKE`.
+[21] RQLITE. [*Directly accessing SQLite*](https://rqlite.io/docs/guides/direct-access/). Acesso local ao arquivo e permissões do sistema operacional.
 
 [22] O’TOOLE, Philip. [*Replicating SQLite using Raft Consensus*](https://philipotoole.com/replicating-sqlite-using-raft-consensus/). 2014.
 
